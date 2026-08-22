@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>按摩預約系統</title>
+  <style>
+    :root {
+      --primary-color: #333;
+      --border-color: #e0e0e0;
+      --hover-color: #f5f5f5;
+      --disabled-bg: #f9f9f9;
+      --disabled-text: #b0b0b0;
+      --alert-color: #e67e22; /* 類似圖片中橘色的登記候補字體顏色 */
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      color: var(--primary-color);
+    }
+
+    /* 頂部功能切換 (新增/取消) */
+    .mode-switch {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+    .mode-switch button {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #888;
+      cursor: pointer;
+      padding: 5px 0;
+    }
+    .mode-switch button.active {
+      color: var(--primary-color);
+      font-weight: bold;
+      border-bottom: 2px solid var(--primary-color);
+    }
+
+    /* 區塊標題 */
+    .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      margin-top: 30px;
+      display: flex;
+      align-items: center;
+    }
+    .section-title::after {
+      content: "";
+      flex: 1;
+      border-bottom: 1px solid var(--border-color);
+      margin-left: 15px;
+    }
+
+    /* 表單元件共用樣式 */
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    input[type="text"], input[type="tel"], input[type="date"], select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 16px;
+      box-sizing: border-box;
+      background-color: #fff;
+    }
+    
+    .note {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    /* 時段選擇按鈕 (網格排列) */
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    
+    .time-btn {
+      background-color: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70px; /* 增加高度讓它像圖片那樣 */
+    }
+    .time-btn:hover:not(.disabled):not(.selected) {
+      border-color: #999;
+      background-color: var(--hover-color);
+    }
+    .time-btn.selected {
+      border-color: var(--primary-color);
+      border-width: 2px;
+      font-weight: bold;
+    }
+    .time-btn.disabled {
+      background-color: var(--disabled-bg);
+      color: var(--disabled-text);
+      cursor: not-allowed;
+      border-color: #eee;
+    }
+    .time-btn .sub-text {
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .time-btn.disabled .sub-text {
+      color: var(--alert-color); /* 已被預約顯示橘色小字 */
+    }
+
+    /* 隱藏原生 input radio */
+    .time-grid input[type="radio"] {
+      display: none;
+    }
+
+    /* 送出按鈕 */
+    .submit-btn {
+      width: 100%;
+      padding: 15px;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 30px;
+    }
+    .submit-btn:disabled {
+      background-color: #ccc;
+    }
+    .submit-btn.delete-btn {
+      background-color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mode-switch">
+    <button type="button" id="btnModeAdd" class="active" onclick="switchMode('add')">線上預約</button>
+    <button type="button" id="btnModeDelete" onclick="switchMode('delete')">查詢/取消預約</button>
+  </div>
+
+  <form id="bookingForm">
+    
+    <!-- 區塊一：日期與服務 -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>預約日期</label>
+        <input type="date" id="date" required>
+      </div>
+      <div class="form-group" id="serviceGroup">
+        <label>服務項目</label>
+        <select id="service">
+          <option value="局部舒壓 30分">局部舒壓 30分</option>
+          <option value="全身精油 30分">全身精油 30分</option>
+        </select>
+      </div>
+    </div>
+    <div class="note" id="addNote">可接受預約時間為 18:00 - 22:00，每個時段為 30 分鐘。</div>
+
+    <!-- 區塊二：預約時段 (網格按鈕) -->
+    <div class="section-title">預約時段</div>
+    <div class="time-grid" id="timeGrid">
+      <!-- JavaScript 會動態產生時段按鈕 -->
+    </div>
+    <!-- 用來儲存選擇的時間值 -->
+    <input type="hidden" id="selectedTime" required>
+
+    <!-- 區塊三：聯絡資訊 -->
+    <div class="section-title" id="infoTitle">聯絡資訊</div>
+    <div class="form-row">
+      <div class="form-group" id="nameGroup">
+        <label>姓名</label>
+        <input type="text" id="name" placeholder="請輸入姓名">
+      </div>
+      <div class="form-group">
+        <label id="phoneLabel">聯絡電話</label>
+        <input type="tel" id="phone" placeholder="09XX-XXX-XXX" required>
+      </div>
+    </div>
+    <div class="note" id="deleteNote" style="display: none; color: #d32f2f;">
+      * 取消預約請輸入「原預約日期、時段與電話號碼」以進行驗證。
+    </div>
+
+    <button type="submit" id="submitBtn" class="submit-btn">確認預約</button>
+  </form>
+
+  <script>
+    // ⚠️ 之後要在這裡填入你的 Google Apps Script 網址
+    const GAS_URL = '等一下會產生的_GAS_網址';
+    
+    let currentMode = 'add';
+    let bookedSlots = [];
+    
+    // 定義所有可預約的時段 (18:00-21:30)
+    const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
+
+    // 模擬載入假資料 (開發測試用，等接上 GAS 後可移除)
+    // bookedSlots = ["2026-08-23_19:00", "2026-08-23_20:30"]; 
+
+    // 初始化時段按鈕介面
+    function renderTimeSlots() {
+      const timeGrid = document.getElementById('timeGrid');
+      timeGrid.innerHTML = ''; // 清空
+      
+      const selectedDate = document.getElementById('date').value;
+      const selectedTimeInput = document.getElementById('selectedTime');
+      selectedTimeInput.value = ''; // 每次重洗畫面時清空已選時間
+
+      if (!selectedDate) {
+        timeGrid.innerHTML = '<div style="color:#888; padding: 20px 0;">請先選擇上方「預約日期」</div>';
+        return;
+      }
+
+      timeSlots.forEach(time => {
+        const slotKey = `${selectedDate}_${time}`;
+        const isBooked = bookedSlots.includes(slotKey);
+        
+        // 建立按鈕外觀
+        const label = document.createElement('label');
+        label.className = 'time-btn';
+        
+        // 建立隱藏的 Radio Input
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'timeSelection';
+        radio.value = time;
+        
+        // 主要時間文字
+        const mainText = document.createElement('span');
+        mainText.textContent = time;
+        
+        // 副標文字 (已被預約 / 可預約 / 取消)
+        const subText = document.createElement('span');
+        subText.className = 'sub-text';
+
+        if (currentMode === 'add') {
+          if (isBooked) {
+            label.classList.add('disabled');
+            radio.disabled = true;
+            subText.textContent = '已被預約';
+          } else {
+            subText.textContent = ''; // 可留空或寫 '可預約'
+          }
+        } else {
+          // 刪除模式：標示哪裡有紀錄
+          if (isBooked) {
+            subText.textContent = '有預約紀錄';
+            subText.style.color = 'var(--primary-color)';
+          } else {
+            label.classList.add('disabled');
+            radio.disabled = true;
+            subText.textContent = '尚無紀錄';
+          }
+        }
+
+        // 點擊事件：處理樣式變更與賦值
+        radio.addEventListener('change', (e) => {
+          // 移除所有人的 selected 樣式
+          document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('selected'));
+          // 給目前點擊的加上 selected 樣式
+          if(e.target.checked) {
+            label.classList.add('selected');
+            selectedTimeInput.value = e.target.value;
+          }
+        });
+
+        label.appendChild(radio);
+        label.appendChild(mainText);
+        label.appendChild(subText);
+        timeGrid.appendChild(label);
+      });
+    }
+
+    // 監聽日期變更
+    document.getElementById('date').addEventListener('change', renderTimeSlots);
+
+    // 切換 新增/取消 模式
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('btnModeAdd').className = mode === 'add' ? 'active' : '';
+      document.getElementById('btnModeDelete').className = mode === 'delete' ? 'active' : '';
+      
+      const serviceGroup = document.getElementById('serviceGroup');
+      const nameGroup = document.getElementById('nameGroup');
+      const nameInput = document.getElementById('name');
+      const submitBtn = document.getElementById('submitBtn');
+      const infoTitle = document.getElementById('infoTitle');
+      const addNote = document.getElementById('addNote');
+      const deleteNote = document.getElementById('deleteNote');
+
+      if (mode === 'add') {
+        serviceGroup.style.display = 'block';
+        nameGroup.style.display = 'block';
+        nameInput.required = true;
+        submitBtn.textContent = '確認預約';
+        submitBtn.className = 'submit-btn';
+        infoTitle.textContent = '聯絡資訊';
+        addNote.style.display = 'block';
+        deleteNote.style.display = 'none';
+      } else {
+        serviceGroup.style.display = 'none';
+        nameGroup.style.display = 'none';
+        nameInput.required = false;
+        submitBtn.textContent = '確認取消該時段預約';
+        submitBtn.className = 'submit-btn delete-btn';
+        infoTitle.textContent = '驗證資訊';
+        addNote.style.display = 'none';
+        deleteNote.style.display = 'block';
+      }
+      
+      // 重新渲染時間區塊
+      renderTimeSlots();
+    }
+
+    // 表單送出事件 (串接 GAS)
+    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const selectedTime = document.getElementById('selectedTime').value;
+      if (!selectedTime) {
+        alert('請選擇預約時段！');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '處理中...';
+
+      const payload = {
+        action: currentMode,
+        date: document.getElementById('date').value,
+        time: selectedTime,
+        phone: document.getElementById('phone').value,
+        name: document.getElementById('name').value,
+        service: document.getElementById('service').value
+      };
+
+      // == 以下為實際串接 GAS 的程式碼 ==
+      /*
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if (data.result === 'success') {
+          location.reload(); 
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
+        }
+      })
+      .catch(err => {
+        alert('系統發生錯誤，請稍後再試');
+        submitBtn.disabled = false;
+        submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
+      });
+      */
+      
+      // 開發階段假裝成功：
+      alert(`測試：${currentMode === 'add' ? '預約' : '取消'}資料已送出\n日期：${payload.date}\n時間：${payload.time}\n電話：${payload.phone}`);
+      submitBtn.disabled = false;
+      submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
+    });
+
+    // 初始載入假裝沒有選擇日期
+    renderTimeSlots();
+  </script>
+</body>
+</html>
