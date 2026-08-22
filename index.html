@@ -11,7 +11,7 @@
       --hover-color: #f5f5f5;
       --disabled-bg: #f9f9f9;
       --disabled-text: #b0b0b0;
-      --alert-color: #e67e22; /* 類似圖片中橘色的登記候補字體顏色 */
+      --alert-color: #e67e22;
     }
 
     body {
@@ -113,7 +113,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 70px; /* 增加高度讓它像圖片那樣 */
+      min-height: 70px;
     }
     .time-btn:hover:not(.disabled):not(.selected) {
       border-color: #999;
@@ -135,7 +135,7 @@
       margin-top: 4px;
     }
     .time-btn.disabled .sub-text {
-      color: var(--alert-color); /* 已被預約顯示橘色小字 */
+      color: var(--alert-color);
     }
 
     /* 隱藏原生 input radio */
@@ -217,7 +217,6 @@
   </form>
 
   <script>
-    // ⚠️ 之後要在這裡填入你的 Google Apps Script 網址
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
     
     let currentMode = 'add';
@@ -226,17 +225,27 @@
     // 定義所有可預約的時段 (18:00-21:30)
     const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
 
-    // 模擬載入假資料 (開發測試用，等接上 GAS 後可移除)
-    // bookedSlots = ["2026-08-23_19:00", "2026-08-23_20:30"]; 
+    // 網頁開啟時向 GAS 抓取已被預約的清單
+    function fetchBookedSlots() {
+      fetch(GAS_URL)
+        .then(res => res.json())
+        .then(data => {
+          if (data.bookedSlots) {
+            bookedSlots = data.bookedSlots;
+            renderTimeSlots();
+          }
+        })
+        .catch(err => console.error('無法取得預約資料:', err));
+    }
 
     // 初始化時段按鈕介面
     function renderTimeSlots() {
       const timeGrid = document.getElementById('timeGrid');
-      timeGrid.innerHTML = ''; // 清空
+      timeGrid.innerHTML = ''; 
       
       const selectedDate = document.getElementById('date').value;
       const selectedTimeInput = document.getElementById('selectedTime');
-      selectedTimeInput.value = ''; // 每次重洗畫面時清空已選時間
+      selectedTimeInput.value = '';
 
       if (!selectedDate) {
         timeGrid.innerHTML = '<div style="color:#888; padding: 20px 0;">請先選擇上方「預約日期」</div>';
@@ -247,21 +256,17 @@
         const slotKey = `${selectedDate}_${time}`;
         const isBooked = bookedSlots.includes(slotKey);
         
-        // 建立按鈕外觀
         const label = document.createElement('label');
         label.className = 'time-btn';
         
-        // 建立隱藏的 Radio Input
         const radio = document.createElement('input');
         radio.type = 'radio';
         radio.name = 'timeSelection';
         radio.value = time;
         
-        // 主要時間文字
         const mainText = document.createElement('span');
         mainText.textContent = time;
         
-        // 副標文字 (已被預約 / 可預約 / 取消)
         const subText = document.createElement('span');
         subText.className = 'sub-text';
 
@@ -271,10 +276,9 @@
             radio.disabled = true;
             subText.textContent = '已被預約';
           } else {
-            subText.textContent = ''; // 可留空或寫 '可預約'
+            subText.textContent = '';
           }
         } else {
-          // 刪除模式：標示哪裡有紀錄
           if (isBooked) {
             subText.textContent = '有預約紀錄';
             subText.style.color = 'var(--primary-color)';
@@ -285,11 +289,8 @@
           }
         }
 
-        // 點擊事件：處理樣式變更與賦值
         radio.addEventListener('change', (e) => {
-          // 移除所有人的 selected 樣式
           document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('selected'));
-          // 給目前點擊的加上 selected 樣式
           if(e.target.checked) {
             label.classList.add('selected');
             selectedTimeInput.value = e.target.value;
@@ -340,11 +341,10 @@
         deleteNote.style.display = 'block';
       }
       
-      // 重新渲染時間區塊
       renderTimeSlots();
     }
 
-    // 表單送出事件 (串接 GAS)
+    // 表單送出事件 (正式串接 GAS)
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
@@ -367,8 +367,6 @@
         service: document.getElementById('service').value
       };
 
-      // == 以下為實際串接 GAS 的程式碼 ==
-      /*
       fetch(GAS_URL, {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -377,7 +375,7 @@
       .then(data => {
         alert(data.message);
         if (data.result === 'success') {
-          location.reload(); 
+          location.reload();
         } else {
           submitBtn.disabled = false;
           submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
@@ -388,16 +386,10 @@
         submitBtn.disabled = false;
         submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
       });
-      */
-      
-      // 開發階段假裝成功：
-      alert(`測試：${currentMode === 'add' ? '預約' : '取消'}資料已送出\n日期：${payload.date}\n時間：${payload.time}\n電話：${payload.phone}`);
-      submitBtn.disabled = false;
-      submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
     });
 
-    // 初始載入假裝沒有選擇日期
-    renderTimeSlots();
+    // 網頁載入時立刻讀取已被預約的資料
+    fetchBookedSlots();
   </script>
 </body>
 </html>
