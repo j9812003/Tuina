@@ -22,7 +22,6 @@
       color: var(--primary-color);
     }
 
-    /* 頂部功能切換 (新增/取消) */
     .mode-switch {
       display: flex;
       gap: 15px;
@@ -44,7 +43,6 @@
       border-bottom: 2px solid var(--primary-color);
     }
 
-    /* 區塊標題 */
     .section-title {
       font-size: 16px;
       font-weight: bold;
@@ -60,7 +58,6 @@
       margin-left: 15px;
     }
 
-    /* 表單元件共用樣式 */
     .form-row {
       display: flex;
       flex-wrap: wrap;
@@ -93,7 +90,6 @@
       margin-top: 5px;
     }
 
-    /* 時段選擇按鈕 (網格排列) */
     .time-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -114,6 +110,7 @@
       align-items: center;
       justify-content: center;
       min-height: 70px;
+      user-select: none;
     }
     .time-btn:hover:not(.disabled):not(.selected) {
       border-color: #999;
@@ -138,12 +135,10 @@
       color: var(--alert-color);
     }
 
-    /* 隱藏原生 input radio */
     .time-grid input[type="radio"] {
       display: none;
     }
 
-    /* 送出按鈕 */
     .submit-btn {
       width: 100%;
       padding: 15px;
@@ -172,8 +167,6 @@
   </div>
 
   <form id="bookingForm">
-    
-    <!-- 區塊一：日期與服務 -->
     <div class="form-row">
       <div class="form-group">
         <label>預約日期</label>
@@ -189,15 +182,10 @@
     </div>
     <div class="note" id="addNote">可接受預約時間為 18:00 - 22:00，每個時段為 30 分鐘。</div>
 
-    <!-- 區塊二：預約時段 (網格按鈕) -->
     <div class="section-title">預約時段</div>
-    <div class="time-grid" id="timeGrid">
-      <!-- JavaScript 會動態產生時段按鈕 -->
-    </div>
-    <!-- 用來儲存選擇的時間值 -->
+    <div class="time-grid" id="timeGrid"></div>
     <input type="hidden" id="selectedTime" required>
 
-    <!-- 區塊三：聯絡資訊 -->
     <div class="section-title" id="infoTitle">聯絡資訊</div>
     <div class="form-row">
       <div class="form-group" id="nameGroup">
@@ -210,7 +198,7 @@
       </div>
     </div>
     <div class="note" id="deleteNote" style="display: none; color: #d32f2f;">
-      * 取消預約請輸入「原預約日期、時段與電話號碼」以進行驗證。
+      * 取消預約請輸入「原預約日期、選擇欲取消的時段與電話號碼」以進行驗證。
     </div>
 
     <button type="submit" id="submitBtn" class="submit-btn">確認預約</button>
@@ -221,11 +209,8 @@
     
     let currentMode = 'add';
     let bookedSlots = [];
-    
-    // 定義所有可預約的時段 (18:00-21:30)
     const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
 
-    // 網頁開啟時向 GAS 抓取已被預約的清單
     function fetchBookedSlots() {
       fetch(GAS_URL)
         .then(res => res.json())
@@ -238,7 +223,6 @@
         .catch(err => console.error('無法取得預約資料:', err));
     }
 
-    // 初始化時段按鈕介面
     function renderTimeSlots() {
       const timeGrid = document.getElementById('timeGrid');
       timeGrid.innerHTML = ''; 
@@ -275,8 +259,6 @@
             label.classList.add('disabled');
             radio.disabled = true;
             subText.textContent = '已被預約';
-          } else {
-            subText.textContent = '';
           }
         } else {
           if (isBooked) {
@@ -304,10 +286,8 @@
       });
     }
 
-    // 監聽日期變更
     document.getElementById('date').addEventListener('change', renderTimeSlots);
 
-    // 切換 新增/取消 模式
     function switchMode(mode) {
       currentMode = mode;
       document.getElementById('btnModeAdd').className = mode === 'add' ? 'active' : '';
@@ -344,7 +324,6 @@
       renderTimeSlots();
     }
 
-    // 表單送出事件 (正式串接 GAS)
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
@@ -388,7 +367,6 @@
       });
     });
 
-    // 網頁載入時立刻讀取已被預約的資料
     fetchBookedSlots();
   </script>
 </body>
