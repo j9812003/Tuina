@@ -86,24 +86,24 @@
 
     .time-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 15px;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
     }
     
     .time-btn {
       background-color: #fff;
       border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 15px 10px;
+      padding: 12px 8px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
-      font-size: 16px;
+      font-size: 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 70px;
+      min-height: 60px;
       user-select: none;
     }
     .time-btn:hover:not(.disabled):not(.selected) {
@@ -129,6 +129,13 @@
 
     .time-grid input[type="radio"] {
       display: none;
+    }
+    
+    .closed-message {
+      color: var(--alert-color);
+      padding: 20px 0;
+      font-weight: bold;
+      font-size: 16px;
     }
 
     .booking-list {
@@ -196,7 +203,6 @@
       </div>
       <div class="form-group">
         <label>服務項目</label>
-        <!-- 已修改為：整復 與 放鬆後整復 -->
         <select id="service">
           <option value="整復">整復</option>
           <option value="放鬆後整復">放鬆後整復</option>
@@ -252,7 +258,14 @@
     
     let bookedSlots = [];
     let selectedBookingTimeForDelete = '';
-    const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
+
+    // 平日與假日的營業時段定義
+    const weekdaySlots = ["17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
+    const weekendSlots = [
+      "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
+      "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", 
+      "16:00", "16:30", "17:00", "17:30", "18:00"
+    ];
 
     // 前端鎖定台灣時間 (UTC+8) 當天至未來 30 天
     function setupDateLimits() {
@@ -303,7 +316,19 @@
         return;
       }
 
-      timeSlots.forEach(time => {
+      // 判斷選取的日期是星期幾 (0: 週日, 1: 週一, ..., 6: 週六)
+      const dateObj = new Date(selectedDate + 'T00:00:00+08:00');
+      const dayOfWeek = dateObj.getDay();
+      
+      // 每週一公休防呆
+      if (dayOfWeek === 1) {
+        timeGrid.innerHTML = '<div class="closed-message">🚫 本日為公休日，請選擇其他日期喔！</div>';
+        return;
+      }
+
+      const currentSlots = (dayOfWeek === 0 || dayOfWeek === 6) ? weekendSlots : weekdaySlots;
+
+      currentSlots.forEach(time => {
         const slotKey = `${selectedDate}_${time}`;
         const isBooked = bookedSlots.includes(slotKey);
         
