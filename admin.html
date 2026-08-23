@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>預約系統 - 店長管理後台</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 20px;
+      color: #333;
+    }
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>⚙️ 店長公休/特別日設定</h2>
+    
+    <form id="adminForm">
+      <div class="form-group">
+        <label>管理員密碼</label>
+        <input type="password" id="adminKey" placeholder="請輸入管理密碼" required>
+      </div>
+
+      <div class="form-group">
+        <label>選擇日期</label>
+        <input type="date" id="date" required>
+      </div>
+
+      <div class="form-group">
+        <label>當天設定模式</label>
+        <select id="type" required>
+          <option value="OFF">🚫 臨時公休 (不開放預約)</option>
+          <option value="WEEKEND">🎉 國定假日/彈性放假 (開放 10:00-18:00)</option>
+          <option value="WEEKDAY">💼 補班日/加班日 (開放 17:30-21:30)</option>
+          <option value="CANCEL">🔄 恢復預設 (刪除此日期的特殊設定)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>備註說明 (選填，如：端午節)</label>
+        <input type="text" id="note" placeholder="例如：颱風假、清潔日">
+      </div>
+
+      <button type="submit" id="submitBtn">儲存設定</button>
+    </form>
+  </div>
+
+  <script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
+
+    document.getElementById('adminForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = '處理中...';
+
+      const payload = {
+        action: 'setSpecialDay',
+        adminKey: document.getElementById('adminKey').value,
+        date: document.getElementById('date').value,
+        type: document.getElementById('type').value,
+        note: document.getElementById('note').value
+      };
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        btn.disabled = false;
+        btn.textContent = '儲存設定';
+        if (data.result === 'success') {
+          document.getElementById('note').value = '';
+        }
+      })
+      .catch(err => {
+        alert('設定失敗：' + err);
+        btn.disabled = false;
+        btn.textContent = '儲存設定';
+      });
+    });
+  </script>
+</body>
+</html>
