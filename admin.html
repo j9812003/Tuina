@@ -5,174 +5,229 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>預約系統 - 店長管理後台</title>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 600px;
-      margin: 30px auto;
-      padding: 20px;
-      color: #333;
+    :root {
+      --border-color: #333;       /* 特粗深色邊框 */
+      --active-blue: #0056b3;     /* 高對比藍色 */
+      --alert-color: #c92a2a;
     }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "PingFang TC", sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+      color: #111;
+      font-size: 18px; /* 全局大字體 */
+      line-height: 1.5;
+    }
+
     .nav-tabs {
       display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #e0e0e0;
+      gap: 20px;
+      margin-bottom: 30px;
+      border-bottom: 3px solid #ccc;
+      padding-bottom: 10px;
     }
     .nav-tab {
-      padding: 10px 16px;
-      border: none;
       background: none;
-      font-size: 16px;
+      border: none;
+      font-size: 22px;
       font-weight: bold;
       color: #666;
       cursor: pointer;
-      border-bottom: 3px solid transparent;
+      padding: 10px 15px;
+      border-radius: 6px;
     }
     .nav-tab.active {
-      color: #007bff;
-      border-bottom-color: #007bff;
+      color: #000;
+      background-color: #f0f0f0;
+      border-bottom: 4px solid #000;
     }
-    .card {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      background-color: #fff;
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 18px;
+      margin-top: 25px;
+      display: flex;
+      align-items: center;
+      color: #000;
     }
+    .section-title::after {
+      content: "";
+      flex: 1;
+      border-bottom: 2px solid #666;
+      margin-left: 15px;
+    }
+
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
+
     label {
       display: block;
+      font-size: 18px;
+      margin-bottom: 10px;
       font-weight: bold;
-      margin-bottom: 8px;
+      color: #000;
     }
-    input, select {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-      font-size: 16px;
-    }
-    button {
+
+    input[type="text"], 
+    input[type="password"], 
+    input[type="date"], 
+    select {
       width: 100%;
       padding: 14px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 16px;
+      border: 2px solid var(--border-color); /* 特粗框 */
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      box-sizing: border-box;
+      background-color: #fff;
+      color: #000;
+    }
+
+    input:focus, select:focus {
+      outline: 3px solid var(--active-blue);
+      border-color: var(--active-blue);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 18px;
+      background-color: #000;
+      color: #fff;
+      border: 2px solid #000;
+      border-radius: 8px;
+      font-size: 22px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    button:disabled {
-      background-color: #ccc;
+
+    .submit-btn:hover:not(:disabled) {
+      background-color: #222;
     }
+
+    .submit-btn:disabled {
+      background-color: #aaa;
+      border-color: #aaa;
+    }
+
     .tab-content {
       display: none;
     }
     .tab-content.active {
       display: block;
     }
+
+    /* 預約清單表格 */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 15px;
+      margin-top: 20px;
     }
+
     th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
+      border: 2px solid var(--border-color); /* 加粗表格框 */
+      padding: 14px;
       text-align: left;
-      font-size: 15px;
+      font-size: 18px;
     }
+
     th {
-      background-color: #f5f5f5;
+      background-color: #f0f0f0;
+      font-size: 19px;
     }
+
+    td a {
+      color: var(--active-blue);
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
     .empty-msg {
       text-align: center;
-      color: #888;
-      padding: 20px 0;
+      color: var(--alert-color);
+      font-size: 20px;
+      font-weight: bold;
+      padding: 30px 0;
     }
   </style>
 </head>
 <body>
 
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('queryTab')">📋 當日預約查詢</button>
-    <button class="nav-tab" onclick="switchTab('settingTab')">⚙️ 特殊營業日設定</button>
+    <button class="nav-tab active" onclick="switchTab('queryTab', this)">📋 當日預約查詢</button>
+    <button class="nav-tab" onclick="switchTab('settingTab', this)">⚙️ 特殊營業日設定</button>
   </div>
 
   <!-- 分頁一：當日預約查詢 -->
   <div id="queryTab" class="tab-content active">
-    <div class="card">
-      <h2>📋 查詢當天預約名單</h2>
-      <div class="form-group">
-        <label>管理員密碼</label>
-        <input type="password" id="queryAdminKey" placeholder="請輸入管理密碼 (預設: 9527)" value="9527" required>
-      </div>
-      <div class="form-group">
-        <label>選擇查詢日期</label>
-        <input type="date" id="queryDate" required>
-      </div>
-      <button type="button" id="searchBtn" onclick="fetchDailyBookings()">查詢當日預約</button>
-
-      <div id="bookingResult" style="margin-top: 20px;"></div>
+    <div class="form-group">
+      <label>管理員密碼</label>
+      <input type="password" id="queryAdminKey" value="9527" required>
     </div>
+    <div class="form-group">
+      <label>選擇查詢日期</label>
+      <input type="date" id="queryDate" required>
+    </div>
+    <button type="button" id="searchBtn" class="submit-btn" onclick="fetchDailyBookings()">查詢當日預約</button>
+
+    <div id="bookingResult"></div>
   </div>
 
   <!-- 分頁二：店長公休/特別日設定 -->
   <div id="settingTab" class="tab-content">
-    <div class="card">
-      <h2>⚙️ 店長公休/特別日設定</h2>
-      <form id="adminForm">
-        <div class="form-group">
-          <label>管理員密碼</label>
-          <input type="password" id="adminKey" placeholder="請輸入管理密碼 (預設: 9527)" value="9527" required>
-        </div>
+    <form id="adminForm">
+      <div class="form-group">
+        <label>管理員密碼</label>
+        <input type="password" id="adminKey" value="9527" required>
+      </div>
 
-        <div class="form-group">
-          <label>選擇日期</label>
-          <input type="date" id="date" required>
-        </div>
+      <div class="form-group">
+        <label>選擇日期</label>
+        <input type="date" id="date" required>
+      </div>
 
-        <div class="form-group">
-          <label>當天設定模式</label>
-          <select id="type" required>
-            <option value="OFF">🚫 臨時公休 (不開放預約)</option>
-            <option value="WEEKEND">🎉 國定假日/彈性放假 (開放 10:00-18:00)</option>
-            <option value="WEEKDAY">💼 補班日/加班日 (開放 17:30-21:30)</option>
-            <option value="CANCEL">🔄 恢復預設 (刪除此日期的特殊設定)</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label>當天設定模式</label>
+        <select id="type" required>
+          <option value="OFF">🚫 臨時公休 (不開放預約)</option>
+          <option value="WEEKEND">🎉 國定假日/彈性放假 (開放 10:00-18:00)</option>
+          <option value="WEEKDAY">💼 補班日/加班日 (開放 17:30-21:30)</option>
+          <option value="CANCEL">🔄 恢復預設 (刪除此日期的特殊設定)</option>
+        </select>
+      </div>
 
-        <div class="form-group">
-          <label>備註說明 (選填，如：端午節)</label>
-          <input type="text" id="note" placeholder="例如：颱風假、清潔日">
-        </div>
+      <div class="form-group">
+        <label>備註說明 (選填，例如：端午節、清潔日)</label>
+        <input type="text" id="note" placeholder="例如：颱風假">
+      </div>
 
-        <button type="submit" id="submitBtn">儲存設定</button>
-      </form>
-    </div>
+      <button type="submit" id="submitBtn" class="submit-btn">儲存設定</button>
+    </form>
   </div>
 
   <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
 
-    // 預設將查詢與設定日期設為今天
+    // 預設日期設為今天
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('queryDate').value = today;
     document.getElementById('date').value = today;
 
-    function switchTab(tabId) {
+    // 切換頁籤
+    function switchTab(tabId, btnElement) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
       
       document.getElementById(tabId).classList.add('active');
-      event.target.classList.add('active');
+      btnElement.classList.add('active');
     }
 
-    // 查詢當日預約清單
+    // 查詢當日預約名單
     function fetchDailyBookings() {
       const adminKey = document.getElementById('queryAdminKey').value.trim();
       const date = document.getElementById('queryDate').value;
@@ -186,7 +241,7 @@
 
       btn.disabled = true;
       btn.textContent = '查詢中...';
-      resultDiv.innerHTML = '<div class="empty-msg">載入資料中...</div>';
+      resultDiv.innerHTML = '<div class="empty-msg" style="color:#000;">資料載入中，請稍候...</div>';
 
       fetch(GAS_URL, {
         method: 'POST',
@@ -208,7 +263,7 @@
         }
 
         if (data.bookings && data.bookings.length > 0) {
-          let html = `<h3>📅 ${date} 預約名單 (共 ${data.bookings.length} 組)</h3>`;
+          let html = `<div class="section-title">📅 ${date} 預約名單 (共 ${data.bookings.length} 組)</div>`;
           html += `<table>
             <thead>
               <tr>
@@ -243,7 +298,7 @@
       });
     }
 
-    // 特殊日設定提交
+    // 店長特殊日設定提交
     document.getElementById('adminForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
