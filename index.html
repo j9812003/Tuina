@@ -83,12 +83,6 @@
       box-sizing: border-box;
       background-color: #fff;
     }
-    
-    .note {
-      font-size: 12px;
-      color: #666;
-      margin-top: 5px;
-    }
 
     .time-grid {
       display: grid;
@@ -130,13 +124,31 @@
     .time-btn .sub-text {
       font-size: 12px;
       margin-top: 4px;
-    }
-    .time-btn.disabled .sub-text {
       color: var(--alert-color);
     }
 
     .time-grid input[type="radio"] {
       display: none;
+    }
+
+    .booking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .booking-item {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .booking-item.selected {
+      border-color: #d32f2f;
+      background-color: #fff8f8;
+      font-weight: bold;
     }
 
     .submit-btn {
@@ -157,6 +169,15 @@
     .submit-btn.delete-btn {
       background-color: #d32f2f;
     }
+    .secondary-btn {
+      padding: 12px 20px;
+      background-color: #666;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -166,13 +187,14 @@
     <button type="button" id="btnModeDelete" onclick="switchMode('delete')">查詢/取消預約</button>
   </div>
 
-  <form id="bookingForm">
+  <!-- 新增預約表單 -->
+  <form id="addForm">
     <div class="form-row">
       <div class="form-group">
         <label>預約日期</label>
         <input type="date" id="date" required>
       </div>
-      <div class="form-group" id="serviceGroup">
+      <div class="form-group">
         <label>服務項目</label>
         <select id="service">
           <option value="局部舒壓 30分">局部舒壓 30分</option>
@@ -180,35 +202,55 @@
         </select>
       </div>
     </div>
-    <div class="note" id="addNote">可接受預約時間為 18:00 - 22:00，每個時段為 30 分鐘。</div>
 
     <div class="section-title">預約時段</div>
     <div class="time-grid" id="timeGrid"></div>
     <input type="hidden" id="selectedTime" required>
 
-    <div class="section-title" id="infoTitle">聯絡資訊</div>
+    <div class="section-title">聯絡資訊</div>
     <div class="form-row">
-      <div class="form-group" id="nameGroup">
+      <div class="form-group">
         <label>姓名</label>
-        <input type="text" id="name" placeholder="請輸入姓名">
+        <input type="text" id="name" placeholder="請輸入姓名" required>
       </div>
       <div class="form-group">
-        <label id="phoneLabel">聯絡電話</label>
+        <label>聯絡電話</label>
         <input type="tel" id="phone" placeholder="09XX-XXX-XXX" required>
       </div>
     </div>
-    <div class="note" id="deleteNote" style="display: none; color: #d32f2f;">
-      * 取消預約請輸入「原預約日期、選擇欲取消的時段與電話號碼」以進行驗證。
+
+    <button type="submit" id="addSubmitBtn" class="submit-btn">確認預約</button>
+  </form>
+
+  <!-- 查詢/取消預約區塊 -->
+  <div id="deleteSection" style="display: none;">
+    <div class="form-row" style="align-items: flex-end;">
+      <div class="form-group">
+        <label>輸入預約姓名查詢</label>
+        <input type="text" id="searchName" placeholder="請輸入當初預約的姓名">
+      </div>
+      <button type="button" class="secondary-btn" onclick="searchUserBookings()">搜尋紀錄</button>
     </div>
 
-    <button type="submit" id="submitBtn" class="submit-btn">確認預約</button>
-  </form>
+    <div id="searchResults" style="display: none;">
+      <div class="section-title">點選欲取消的預約紀錄</div>
+      <div class="booking-list" id="bookingList"></div>
+
+      <div class="section-title">身份驗證</div>
+      <div class="form-group">
+        <label>驗證聯絡電話</label>
+        <input type="tel" id="deletePhone" placeholder="請輸入預約時的電話號碼以核對">
+      </div>
+
+      <button type="button" id="deleteSubmitBtn" class="submit-btn delete-btn" onclick="confirmDelete()">確認取消該筆預約</button>
+    </div>
+  </div>
 
   <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
     
-    let currentMode = 'add';
     let bookedSlots = [];
+    let selectedBookingTimeForDelete = '';
     const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
 
     function fetchBookedSlots() {
@@ -254,21 +296,10 @@
         const subText = document.createElement('span');
         subText.className = 'sub-text';
 
-        if (currentMode === 'add') {
-          if (isBooked) {
-            label.classList.add('disabled');
-            radio.disabled = true;
-            subText.textContent = '已被預約';
-          }
-        } else {
-          if (isBooked) {
-            subText.textContent = '有預約紀錄';
-            subText.style.color = 'var(--primary-color)';
-          } else {
-            label.classList.add('disabled');
-            radio.disabled = true;
-            subText.textContent = '尚無紀錄';
-          }
+        if (isBooked) {
+          label.classList.add('disabled');
+          radio.disabled = true;
+          subText.textContent = '已被預約';
         }
 
         radio.addEventListener('change', (e) => {
@@ -289,42 +320,15 @@
     document.getElementById('date').addEventListener('change', renderTimeSlots);
 
     function switchMode(mode) {
-      currentMode = mode;
       document.getElementById('btnModeAdd').className = mode === 'add' ? 'active' : '';
       document.getElementById('btnModeDelete').className = mode === 'delete' ? 'active' : '';
       
-      const serviceGroup = document.getElementById('serviceGroup');
-      const nameGroup = document.getElementById('nameGroup');
-      const nameInput = document.getElementById('name');
-      const submitBtn = document.getElementById('submitBtn');
-      const infoTitle = document.getElementById('infoTitle');
-      const addNote = document.getElementById('addNote');
-      const deleteNote = document.getElementById('deleteNote');
-
-      if (mode === 'add') {
-        serviceGroup.style.display = 'block';
-        nameGroup.style.display = 'block';
-        nameInput.required = true;
-        submitBtn.textContent = '確認預約';
-        submitBtn.className = 'submit-btn';
-        infoTitle.textContent = '聯絡資訊';
-        addNote.style.display = 'block';
-        deleteNote.style.display = 'none';
-      } else {
-        serviceGroup.style.display = 'none';
-        nameGroup.style.display = 'none';
-        nameInput.required = false;
-        submitBtn.textContent = '確認取消該時段預約';
-        submitBtn.className = 'submit-btn delete-btn';
-        infoTitle.textContent = '驗證資訊';
-        addNote.style.display = 'none';
-        deleteNote.style.display = 'block';
-      }
-      
-      renderTimeSlots();
+      document.getElementById('addForm').style.display = mode === 'add' ? 'block' : 'none';
+      document.getElementById('deleteSection').style.display = mode === 'delete' ? 'block' : 'none';
     }
 
-    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+    // 新增預約送出
+    document.getElementById('addForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
       const selectedTime = document.getElementById('selectedTime').value;
@@ -333,16 +337,16 @@
         return;
       }
 
-      const submitBtn = document.getElementById('submitBtn');
+      const submitBtn = document.getElementById('addSubmitBtn');
       submitBtn.disabled = true;
       submitBtn.textContent = '處理中...';
 
       const payload = {
-        action: currentMode,
+        action: 'add',
         date: document.getElementById('date').value,
         time: selectedTime,
-        phone: document.getElementById('phone').value,
         name: document.getElementById('name').value,
+        phone: document.getElementById('phone').value,
         service: document.getElementById('service').value
       };
 
@@ -357,15 +361,87 @@
           location.reload();
         } else {
           submitBtn.disabled = false;
-          submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
+          submitBtn.textContent = '確認預約';
         }
-      })
-      .catch(err => {
-        alert('系統發生錯誤，請稍後再試');
-        submitBtn.disabled = false;
-        submitBtn.textContent = currentMode === 'add' ? '確認預約' : '確認取消該時段預約';
       });
     });
+
+    // 依姓名搜尋紀錄
+    function searchUserBookings() {
+      const searchName = document.getElementById('searchName').value.trim();
+      if (!searchName) {
+        alert('請輸入姓名進行查詢');
+        return;
+      }
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'search', name: searchName })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const listDiv = document.getElementById('bookingList');
+        listDiv.innerHTML = '';
+        selectedBookingTimeForDelete = '';
+
+        if (data.result === 'success' && data.bookings.length > 0) {
+          data.bookings.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'booking-item';
+            div.innerHTML = `<span>📅 ${item.bookingTime}</span><span>${item.service}</span>`;
+            
+            div.addEventListener('click', () => {
+              document.querySelectorAll('.booking-item').forEach(el => el.classList.remove('selected'));
+              div.classList.add('selected');
+              selectedBookingTimeForDelete = item.bookingTime;
+            });
+
+            listDiv.appendChild(div);
+          });
+          document.getElementById('searchResults').style.display = 'block';
+        } else {
+          alert('查無此姓名的預約紀錄，請確認姓名是否填寫正確。');
+          document.getElementById('searchResults').style.display = 'none';
+        }
+      });
+    }
+
+    // 確認取消
+    function confirmDelete() {
+      if (!selectedBookingTimeForDelete) {
+        alert('請先點選欲取消的預約紀錄！');
+        return;
+      }
+
+      const phone = document.getElementById('deletePhone').value.trim();
+      if (!phone) {
+        alert('請輸入電話號碼以進行驗證');
+        return;
+      }
+
+      const submitBtn = document.getElementById('deleteSubmitBtn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '取消中...';
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'delete',
+          bookingTime: selectedBookingTimeForDelete,
+          phone: phone
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if (data.result === 'success') {
+          location.reload();
+        } else {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '確認取消該筆預約';
+        }
+      });
+    }
 
     fetchBookedSlots();
   </script>
