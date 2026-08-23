@@ -6,12 +6,11 @@
   <title>線上預約系統</title>
   <style>
     :root {
-      --primary-color: #000;
-      --border-color: #333;       /* 邊框加深 */
-      --active-blue: #0056b3;      /* 選取狀態強調藍 */
+      --border-color: #333;       /* 特粗深色邊框 */
+      --active-blue: #0056b3;     /* 選取藍色 */
       --disabled-bg: #e9ecef;
       --disabled-text: #6c757d;
-      --alert-color: #d9534f;
+      --alert-color: #c92a2a;
     }
 
     body {
@@ -20,7 +19,7 @@
       margin: 0 auto;
       padding: 24px;
       color: #111;
-      font-size: 18px; /* 全局基礎字體加大 */
+      font-size: 18px; /* 全局大字體 */
       line-height: 1.5;
     }
 
@@ -34,7 +33,7 @@
     .mode-switch button {
       background: none;
       border: none;
-      font-size: 22px; /* 頁籤字體加大 */
+      font-size: 22px;
       font-weight: bold;
       color: #666;
       cursor: pointer;
@@ -83,7 +82,7 @@
     input[type="text"], input[type="tel"], input[type="date"], select {
       width: 100%;
       padding: 14px;
-      border: 2px solid var(--border-color); /* 加粗輸入框邊框 */
+      border: 2px solid var(--border-color); /* 特粗框 */
       border-radius: 8px;
       font-size: 18px;
       font-weight: bold;
@@ -104,13 +103,13 @@
     
     .time-btn {
       background-color: #fff;
-      border: 2px solid var(--border-color); /* 加粗邊框 */
+      border: 2px solid var(--border-color);
       border-radius: 10px;
       padding: 14px 10px;
       text-align: center;
       cursor: pointer;
       transition: all 0.15s ease-in-out;
-      font-size: 20px; /* 時間數字加大 */
+      font-size: 20px;
       font-weight: bold;
       display: flex;
       flex-direction: column;
@@ -125,7 +124,6 @@
       background-color: #f8f9fa;
       transform: translateY(-2px);
     }
-    /* 選取狀態：深藍底白字，清晰醒目 */
     .time-btn.selected {
       background-color: var(--active-blue);
       color: #fff;
@@ -135,7 +133,6 @@
     .time-btn.selected .sub-text {
       color: #fff;
     }
-    /* 停用/已預約狀態 */
     .time-btn.disabled {
       background-color: var(--disabled-bg);
       color: var(--disabled-text);
@@ -226,7 +223,6 @@
     <button type="button" id="btnModeDelete" onclick="switchMode('delete')">取消預約</button>
   </div>
 
-  <!-- 新增預約表單 -->
   <form id="addForm">
     <div class="form-row">
       <div class="form-group">
@@ -261,7 +257,6 @@
     <button type="submit" id="addSubmitBtn" class="submit-btn">確認預約</button>
   </form>
 
-  <!-- 取消預約區塊 -->
   <div id="deleteSection" style="display: none;">
     <div class="form-row" style="align-items: flex-end;">
       <div class="form-group">
@@ -301,7 +296,6 @@
 
     function setupDateLimits() {
       const dateInput = document.getElementById('date');
-
       const getTaiwanDateStr = (dateObj) => {
         const formatter = new Intl.DateTimeFormat('en-CA', {
           timeZone: 'Asia/Taipei',
@@ -314,7 +308,6 @@
 
       const now = new Date();
       const todayStr = getTaiwanDateStr(now);
-
       const maxDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
       const maxStr = getTaiwanDateStr(maxDate);
 
