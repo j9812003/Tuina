@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>預約系統</title>
+  <title>線上預約系統</title>
   <style>
     :root {
       --primary-color: #333;
@@ -257,9 +257,9 @@
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
     
     let bookedSlots = [];
+    let specialDays = {};
     let selectedBookingTimeForDelete = '';
 
-    // 平日與假日的營業時段定義
     const weekdaySlots = ["17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
     const weekendSlots = [
       "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", 
@@ -267,7 +267,6 @@
       "16:00", "16:30", "17:00", "17:30", "18:00"
     ];
 
-    // 前端鎖定台灣時間 (UTC+8) 當天至未來 30 天
     function setupDateLimits() {
       const dateInput = document.getElementById('date');
 
@@ -278,7 +277,7 @@
           month: '2-digit',
           day: '2-digit'
         });
-        return formatter.format(dateObj); // 回傳 "YYYY-MM-DD"
+        return formatter.format(dateObj);
       };
 
       const now = new Date();
@@ -295,10 +294,9 @@
       fetch(GAS_URL)
         .then(res => res.json())
         .then(data => {
-          if (data.bookedSlots) {
-            bookedSlots = data.bookedSlots;
-            renderTimeSlots();
-          }
+          if (data.bookedSlots) bookedSlots = data.bookedSlots;
+          if (data.specialDays) specialDays = data.specialDays;
+          renderTimeSlots();
         })
         .catch(err => console.error('無法取得預約資料:', err));
     }
@@ -316,17 +314,26 @@
         return;
       }
 
-      // 判斷選取的日期是星期幾 (0: 週日, 1: 週一, ..., 6: 週六)
-      const dateObj = new Date(selectedDate + 'T00:00:00+08:00');
-      const dayOfWeek = dateObj.getDay();
-      
-      // 每週一公休防呆
-      if (dayOfWeek === 1) {
-        timeGrid.innerHTML = '<div class="closed-message">🚫 本日為公休日，請選擇其他日期喔！</div>';
+      let dayType = specialDays[selectedDate];
+
+      if (!dayType) {
+        const dateObj = new Date(selectedDate + 'T00:00:00+08:00');
+        const dayOfWeek = dateObj.getDay();
+        if (dayOfWeek === 1) {
+          dayType = 'OFF';
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          dayType = 'WEEKEND';
+        } else {
+          dayType = 'WEEKDAY';
+        }
+      }
+
+      if (dayType === 'OFF') {
+        timeGrid.innerHTML = '<div class="closed-message">🚫 本日公休，請選擇其他日期！</div>';
         return;
       }
 
-      const currentSlots = (dayOfWeek === 0 || dayOfWeek === 6) ? weekendSlots : weekdaySlots;
+      const currentSlots = (dayType === 'WEEKEND') ? weekendSlots : weekdaySlots;
 
       currentSlots.forEach(time => {
         const slotKey = `${selectedDate}_${time}`;
@@ -377,7 +384,6 @@
       document.getElementById('deleteSection').style.display = mode === 'delete' ? 'block' : 'none';
     }
 
-    // 新增預約送出
     document.getElementById('addForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
@@ -416,7 +422,6 @@
       });
     });
 
-    // 依姓名搜尋紀錄
     function searchUserBookings() {
       const searchName = document.getElementById('searchName').value.trim();
       if (!searchName) {
@@ -456,7 +461,6 @@
       });
     }
 
-    // 確認取消
     function confirmDelete() {
       if (!selectedBookingTimeForDelete) {
         alert('請先點選欲取消的預約紀錄！');
@@ -493,7 +497,6 @@
       });
     }
 
-    // 初始化日期限制與讀取已被預約時段
     setupDateLimits();
     fetchBookedSlots();
   </script>
