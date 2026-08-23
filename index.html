@@ -6,8 +6,8 @@
   <title>線上預約系統</title>
   <style>
     :root {
-      --border-color: #333;       /* 特粗深色邊框 */
-      --active-blue: #0056b3;     /* 選取藍色 */
+      --border-color: #333;
+      --active-blue: #0056b3;
       --disabled-bg: #e9ecef;
       --disabled-text: #6c757d;
       --alert-color: #c92a2a;
@@ -19,7 +19,7 @@
       margin: 0 auto;
       padding: 24px;
       color: #111;
-      font-size: 18px; /* 全局大字體 */
+      font-size: 18px;
       line-height: 1.5;
     }
 
@@ -82,14 +82,28 @@
     input[type="text"], input[type="tel"], input[type="date"], select {
       width: 100%;
       padding: 14px;
-      border: 2px solid var(--border-color); /* 特粗框 */
+      border: 2px solid var(--border-color);
       border-radius: 8px;
       font-size: 18px;
       font-weight: bold;
       box-sizing: border-box;
       background-color: #fff;
       color: #000;
+      text-align: center;
     }
+    
+    /* 手機版日期置中修正 */
+    input[type="date"] {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      -webkit-appearance: none;
+    }
+    input[type="date"]::-webkit-date-and-time-value {
+      text-align: center;
+    }
+
     input:focus, select:focus {
       outline: 3px solid var(--active-blue);
       border-color: var(--active-blue);
@@ -156,6 +170,7 @@
       padding: 20px 0;
       font-weight: bold;
       font-size: 20px;
+      text-align: center;
     }
 
     .booking-list {
@@ -335,7 +350,7 @@
       selectedTimeInput.value = '';
 
       if (!selectedDate) {
-        timeGrid.innerHTML = '<div style="color:#555; padding: 20px 0; font-size:18px; font-weight:bold;">請先選擇上方「預約日期」</div>';
+        timeGrid.innerHTML = '<div style="color:#555; padding: 20px 0; font-size:18px; font-weight:bold; text-align:center;">請先選擇上方「預約日期」</div>';
         return;
       }
 
