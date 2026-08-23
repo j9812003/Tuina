@@ -7,16 +7,37 @@
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      max-width: 500px;
-      margin: 40px auto;
+      max-width: 600px;
+      margin: 30px auto;
       padding: 20px;
       color: #333;
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .nav-tab {
+      padding: 10px 16px;
+      border: none;
+      background: none;
+      font-size: 16px;
+      font-weight: bold;
+      color: #666;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+    }
+    .nav-tab.active {
+      color: #007bff;
+      border-bottom-color: #007bff;
     }
     .card {
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       padding: 24px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      background-color: #fff;
     }
     .form-group {
       margin-bottom: 20px;
@@ -48,46 +69,181 @@
     button:disabled {
       background-color: #ccc;
     }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+      font-size: 15px;
+    }
+    th {
+      background-color: #f5f5f5;
+    }
+    .empty-msg {
+      text-align: center;
+      color: #888;
+      padding: 20px 0;
+    }
   </style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>⚙️ 店長公休/特別日設定</h2>
-    
-    <form id="adminForm">
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('queryTab')">📋 當日預約查詢</button>
+    <button class="nav-tab" onclick="switchTab('settingTab')">⚙️ 特殊營業日設定</button>
+  </div>
+
+  <!-- 分頁一：當日預約查詢 -->
+  <div id="queryTab" class="tab-content active">
+    <div class="card">
+      <h2>📋 查詢當天預約名單</h2>
       <div class="form-group">
         <label>管理員密碼</label>
-        <input type="password" id="adminKey" placeholder="請輸入管理密碼" required>
+        <input type="password" id="queryAdminKey" placeholder="請輸入管理密碼 (預設: 9527)" value="9527" required>
       </div>
-
       <div class="form-group">
-        <label>選擇日期</label>
-        <input type="date" id="date" required>
+        <label>選擇查詢日期</label>
+        <input type="date" id="queryDate" required>
       </div>
+      <button type="button" id="searchBtn" onclick="fetchDailyBookings()">查詢當日預約</button>
 
-      <div class="form-group">
-        <label>當天設定模式</label>
-        <select id="type" required>
-          <option value="OFF">🚫 臨時公休 (不開放預約)</option>
-          <option value="WEEKEND">🎉 國定假日/彈性放假 (開放 10:00-18:00)</option>
-          <option value="WEEKDAY">💼 補班日/加班日 (開放 17:30-21:30)</option>
-          <option value="CANCEL">🔄 恢復預設 (刪除此日期的特殊設定)</option>
-        </select>
-      </div>
+      <div id="bookingResult" style="margin-top: 20px;"></div>
+    </div>
+  </div>
 
-      <div class="form-group">
-        <label>備註說明 (選填，如：端午節)</label>
-        <input type="text" id="note" placeholder="例如：颱風假、清潔日">
-      </div>
+  <!-- 分頁二：店長公休/特別日設定 -->
+  <div id="settingTab" class="tab-content">
+    <div class="card">
+      <h2>⚙️ 店長公休/特別日設定</h2>
+      <form id="adminForm">
+        <div class="form-group">
+          <label>管理員密碼</label>
+          <input type="password" id="adminKey" placeholder="請輸入管理密碼 (預設: 9527)" value="9527" required>
+        </div>
 
-      <button type="submit" id="submitBtn">儲存設定</button>
-    </form>
+        <div class="form-group">
+          <label>選擇日期</label>
+          <input type="date" id="date" required>
+        </div>
+
+        <div class="form-group">
+          <label>當天設定模式</label>
+          <select id="type" required>
+            <option value="OFF">🚫 臨時公休 (不開放預約)</option>
+            <option value="WEEKEND">🎉 國定假日/彈性放假 (開放 10:00-18:00)</option>
+            <option value="WEEKDAY">💼 補班日/加班日 (開放 17:30-21:30)</option>
+            <option value="CANCEL">🔄 恢復預設 (刪除此日期的特殊設定)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>備註說明 (選填，如：端午節)</label>
+          <input type="text" id="note" placeholder="例如：颱風假、清潔日">
+        </div>
+
+        <button type="submit" id="submitBtn">儲存設定</button>
+      </form>
+    </div>
   </div>
 
   <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw11dGh1xOzTrIYFsoYqnuX_OhzLWFonUwyl8UP5u7xRUQpVMlbVqxZka5SvApQEvzPxQ/exec';
 
+    // 預設將查詢與設定日期設為今天
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('queryDate').value = today;
+    document.getElementById('date').value = today;
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // 查詢當日預約清單
+    function fetchDailyBookings() {
+      const adminKey = document.getElementById('queryAdminKey').value.trim();
+      const date = document.getElementById('queryDate').value;
+      const resultDiv = document.getElementById('bookingResult');
+      const btn = document.getElementById('searchBtn');
+
+      if (!adminKey || !date) {
+        alert('請填寫密碼與選擇日期');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '查詢中...';
+      resultDiv.innerHTML = '<div class="empty-msg">載入資料中...</div>';
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'getDailyBookings',
+          adminKey: adminKey,
+          date: date
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.textContent = '查詢當日預約';
+
+        if (data.result === 'error') {
+          alert(data.message);
+          resultDiv.innerHTML = '';
+          return;
+        }
+
+        if (data.bookings && data.bookings.length > 0) {
+          let html = `<h3>📅 ${date} 預約名單 (共 ${data.bookings.length} 組)</h3>`;
+          html += `<table>
+            <thead>
+              <tr>
+                <th>時間</th>
+                <th>姓名</th>
+                <th>電話</th>
+                <th>服務項目</th>
+              </tr>
+            </thead>
+            <tbody>`;
+          
+          data.bookings.forEach(item => {
+            html += `<tr>
+              <td><b>${item.time}</b></td>
+              <td>${item.name}</td>
+              <td><a href="tel:${item.phone}">${item.phone}</a></td>
+              <td>${item.service}</td>
+            </tr>`;
+          });
+
+          html += `</tbody></table>`;
+          resultDiv.innerHTML = html;
+        } else {
+          resultDiv.innerHTML = `<div class="empty-msg">該日期 (${date}) 目前尚無任何預約紀錄。</div>`;
+        }
+      })
+      .catch(err => {
+        alert('查詢失敗：' + err);
+        btn.disabled = false;
+        btn.textContent = '查詢當日預約';
+        resultDiv.innerHTML = '';
+      });
+    }
+
+    // 特殊日設定提交
     document.getElementById('adminForm').addEventListener('submit', function(e) {
       e.preventDefault();
 
