@@ -184,14 +184,15 @@
 
   <div class="mode-switch">
     <button type="button" id="btnModeAdd" class="active" onclick="switchMode('add')">線上預約</button>
-    <button type="button" id="btnModeDelete" onclick="switchMode('delete')">查詢/取消預約</button>
+    <!-- 需求 1: 標籤名稱修正為 取消預約 -->
+    <button type="button" id="btnModeDelete" onclick="switchMode('delete')">取消預約</button>
   </div>
 
   <!-- 新增預約表單 -->
   <form id="addForm">
     <div class="form-row">
       <div class="form-group">
-        <label>預約日期</label>
+        <label>預約日期 (可預約 30 天內)</label>
         <input type="date" id="date" required>
       </div>
       <div class="form-group">
@@ -222,7 +223,7 @@
     <button type="submit" id="addSubmitBtn" class="submit-btn">確認預約</button>
   </form>
 
-  <!-- 查詢/取消預約區塊 -->
+  <!-- 取消預約區塊 -->
   <div id="deleteSection" style="display: none;">
     <div class="form-row" style="align-items: flex-end;">
       <div class="form-group">
@@ -252,6 +253,25 @@
     let bookedSlots = [];
     let selectedBookingTimeForDelete = '';
     const timeSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
+
+    // 需求 2: 限制日期選單只能選擇當天至未來 30 天
+    function setupDateLimits() {
+      const dateInput = document.getElementById('date');
+      const today = new Date();
+      
+      const maxDate = new Date();
+      maxDate.setDate(today.getDate() + 30);
+
+      const formatDate = (date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      dateInput.min = formatDate(today);
+      dateInput.max = formatDate(maxDate);
+    }
 
     function fetchBookedSlots() {
       fetch(GAS_URL)
@@ -443,6 +463,8 @@
       });
     }
 
+    // 初始化日期限制與讀取已被預約時段
+    setupDateLimits();
     fetchBookedSlots();
   </script>
 </body>
