@@ -173,6 +173,7 @@
       text-align: center;
     }
 
+    /* 複選式預約清單樣式 */
     .booking-list {
       display: flex;
       flex-direction: column;
@@ -181,18 +182,30 @@
     .booking-item {
       border: 2px solid var(--border-color);
       border-radius: 8px;
-      padding: 18px;
+      padding: 16px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      gap: 14px;
       cursor: pointer;
       font-size: 18px;
       font-weight: bold;
+      background-color: #fff;
+      transition: background-color 0.2s;
+    }
+    .booking-item input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
     }
     .booking-item.selected {
       border: 3px solid var(--alert-color);
       background-color: #fff0f0;
       color: #b71c1c;
+    }
+    .booking-info {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
     }
 
     .submit-btn {
@@ -282,7 +295,7 @@
     </div>
 
     <div id="searchResults" style="display: none;">
-      <div class="section-title">點選欲取消的預約紀錄</div>
+      <div class="section-title">勾選欲取消的預約紀錄 (可複選)</div>
       <div class="booking-list" id="bookingList"></div>
 
       <div class="section-title">身份驗證</div>
@@ -291,7 +304,7 @@
         <input type="tel" id="deletePhone" placeholder="請輸入預約時的電話號碼以核對">
       </div>
 
-      <button type="button" id="deleteSubmitBtn" class="submit-btn delete-btn" onclick="confirmDelete()">確認取消該筆預約</button>
+      <button type="button" id="deleteSubmitBtn" class="submit-btn delete-btn" onclick="confirmDelete()">確認取消勾選的預約</button>
     </div>
   </div>
 
@@ -300,7 +313,7 @@
     
     let bookedSlots = [];
     let specialDays = {};
-    let selectedBookingTimeForDelete = '';
+    let selectedBookingTimesForDelete = [];
 
     const weekdaySlots = ["17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30"];
     const weekendSlots = [
@@ -477,10 +490,9 @@
       .then(data => {
         const listDiv = document.getElementById('bookingList');
         listDiv.innerHTML = '';
-        selectedBookingTimeForDelete = '';
+        selectedBookingTimesForDelete = [];
 
         if (data.result === 'success' && data.bookings.length > 0) {
-          // 取得台灣時間「今天」的日期 (YYYY-MM-DD)
           const now = new Date();
           const todayStr = new Intl.DateTimeFormat('en-CA', {
             timeZone: 'Asia/Taipei',
@@ -489,8 +501,7 @@
             day: '2-digit'
           }).format(now);
 
-          // 1. 保留今天 (含) 以後的預約 (排除昨天與以前)
-          // 2. 依照日期與時間舊到新排序
+          // 保留今日(含)以後的預約，並依時間由舊到新排序
           const validBookings = data.bookings
             .filter(item => {
               const bookingDate = item.bookingTime.split(' ')[0];
@@ -504,17 +515,36 @@
             return;
           }
 
+          // 渲染複選框 Checkbox
           validBookings.forEach(item => {
             const div = document.createElement('div');
             div.className = 'booking-item';
-            div.innerHTML = `<span>📅 ${item.bookingTime}</span><span>${item.service}</span>`;
             
-            div.addEventListener('click', () => {
-              document.querySelectorAll('.booking-item').forEach(el => el.classList.remove('selected'));
-              div.classList.add('selected');
-              selectedBookingTimeForDelete = item.bookingTime;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = item.bookingTime;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'booking-info';
+            infoDiv.innerHTML = `<span>📅 ${item.bookingTime}</span><span>${item.service}</span>`;
+
+            div.addEventListener('click', (e) => {
+              if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+              }
+              if (checkbox.checked) {
+                div.classList.add('selected');
+              } else {
+                div.classList.remove('selected');
+              }
+              
+              selectedBookingTimesForDelete = Array.from(
+                document.querySelectorAll('#bookingList input[type="checkbox"]:checked')
+              ).map(cb => cb.value);
             });
 
+            div.appendChild(checkbox);
+            div.appendChild(infoDiv);
             listDiv.appendChild(div);
           });
           document.getElementById('searchResults').style.display = 'block';
@@ -526,9 +556,10 @@
       .catch(err => alert('查詢失敗：' + err));
     }
 
-    function confirmDelete() {
-      if (!selectedBookingTimeForDelete) {
-        alert('請先點選欲取消的預約紀錄！');
+    // 安全取消函式：使用 async/await 進行嚴格序列化刪除
+    async function confirmDelete() {
+      if (selectedBookingTimesForDelete.length === 0) {
+        alert('請先勾選至少一筆欲取消的預約紀錄！');
         return;
       }
 
@@ -539,27 +570,52 @@
       }
 
       const submitBtn = document.getElementById('deleteSubmitBtn');
-      submitBtn.disabled = true;
-      submitBtn.textContent = '取消中...';
+      const checkboxes = document.querySelectorAll('#bookingList input[type="checkbox"]');
 
-      fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'delete',
-          bookingTime: selectedBookingTimeForDelete,
-          phone: phone
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-        if (data.result === 'success') {
-          location.reload();
-        } else {
-          submitBtn.disabled = false;
-          submitBtn.textContent = '確認取消該筆預約';
+      // 安全鎖 1：UI 全域凍結，避免連點與狀態變更
+      submitBtn.disabled = true;
+      checkboxes.forEach(cb => cb.disabled = true);
+
+      let successCount = 0;
+      let failCount = 0;
+      const total = selectedBookingTimesForDelete.length;
+
+      // 安全鎖 2：使用 for 迴圈 + await，強制單線程等候前一筆請求回應才執行下一筆
+      for (let i = 0; i < total; i++) {
+        const bookingTime = selectedBookingTimesForDelete[i];
+        submitBtn.textContent = `正在取消 (${i + 1}/${total})...`;
+
+        try {
+          const res = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'delete',
+              bookingTime: bookingTime,
+              phone: phone
+            })
+          });
+          const data = await res.json();
+          
+          if (data.result === 'success') {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          failCount++;
         }
-      });
+      }
+
+      // 安全鎖 3：結果提示與狀態重置
+      if (failCount === 0) {
+        alert(`已成功取消 ${successCount} 筆預約！`);
+        location.reload();
+      } else {
+        alert(`處理完成：成功 ${successCount} 筆，失敗 ${failCount} 筆。\n（若有失敗請確認驗證電話號碼是否正確）`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = '確認取消勾選的預約';
+        checkboxes.forEach(cb => cb.disabled = false);
+      }
     }
 
     setupDateLimits();
