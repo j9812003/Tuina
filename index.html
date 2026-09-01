@@ -79,6 +79,11 @@
       font-weight: bold;
       color: #000;
     }
+    .required-tag {
+      color: var(--alert-color);
+      margin-left: 4px;
+    }
+
     input[type="text"], input[type="tel"], input[type="date"], select {
       width: 100%;
       padding: 14px;
@@ -252,7 +257,7 @@
   <form id="addForm">
     <div class="form-row">
       <div class="form-group">
-        <label>預約日期 (開放 30 天內)</label>
+        <label>預約日期 (開放 30 天內)<span class="required-tag">*</span></label>
         <input type="date" id="date" required>
       </div>
       <div class="form-group">
@@ -264,19 +269,18 @@
       </div>
     </div>
 
-    <!-- 預約時段改為可複選 -->
     <div class="section-title">預約時段 (可複選)</div>
     <div class="time-grid" id="timeGrid"></div>
 
     <div class="section-title">聯絡資訊</div>
     <div class="form-row">
       <div class="form-group">
-        <label>姓名</label>
+        <label>姓名<span class="required-tag">*</span></label>
         <input type="text" id="name" placeholder="請輸入姓名" required>
       </div>
       <div class="form-group">
-        <label>聯絡電話</label>
-        <input type="tel" id="phone" placeholder="09XX-XXX-XXX" required>
+        <label>聯絡電話<span class="required-tag">*</span></label>
+        <input type="tel" id="phone" value="09" maxlength="10" placeholder="09XXXXXXXX" required>
       </div>
     </div>
 
@@ -286,7 +290,7 @@
   <div id="deleteSection" style="display: none;">
     <div class="form-row" style="align-items: flex-end;">
       <div class="form-group">
-        <label>輸入預約姓名查詢</label>
+        <label>輸入預約姓名查詢<span class="required-tag">*</span></label>
         <input type="text" id="searchName" placeholder="請輸入當初預約的姓名">
       </div>
       <button type="button" class="secondary-btn" onclick="searchUserBookings()">搜尋紀錄</button>
@@ -298,8 +302,8 @@
 
       <div class="section-title">身份驗證</div>
       <div class="form-group">
-        <label>驗證聯絡電話</label>
-        <input type="tel" id="deletePhone" placeholder="請輸入預約時的電話號碼以核對">
+        <label>驗證聯絡電話<span class="required-tag">*</span></label>
+        <input type="tel" id="deletePhone" value="09" maxlength="10" placeholder="請輸入預約時的 10 位數電話">
       </div>
 
       <button type="button" id="deleteSubmitBtn" class="submit-btn delete-btn" onclick="confirmDelete()">確認取消勾選的預約</button>
@@ -339,6 +343,34 @@
 
       dateInput.min = todayStr;
       dateInput.max = maxStr;
+    }
+
+    // 格式化與綁定電話輸入框：只允許純數字、保持 09 前綴、限制 10 位
+    function bindPhoneInput(inputId) {
+      const input = document.getElementById(inputId);
+      
+      input.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, ''); // 移除非數字字符
+        
+        // 強制確保開頭包含 09
+        if (!val.startsWith('09')) {
+          if (val.startsWith('0')) {
+            val = '09' + val.slice(1);
+          } else if (val.startsWith('9')) {
+            val = '0' + val;
+          } else {
+            val = '09' + val;
+          }
+        }
+        
+        e.target.value = val.slice(0, 10);
+      });
+
+      input.addEventListener('blur', (e) => {
+        if (!e.target.value || e.target.value === '09') {
+          e.target.value = '09';
+        }
+      });
     }
 
     function fetchBookedSlots() {
@@ -391,7 +423,6 @@
         const label = document.createElement('label');
         label.className = 'time-btn';
         
-        // 使用 Checkbox 實現預約時段複選
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.name = 'timeSelection';
@@ -434,10 +465,28 @@
       document.getElementById('deleteSection').style.display = mode === 'delete' ? 'block' : 'none';
     }
 
-    // 預約送出：採用 Async/Await 序列化寫入，防止併發衝突
+    // 表單預約提交
     document.getElementById('addForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
+      const nameVal = document.getElementById('name').value.trim();
+      const phoneVal = document.getElementById('phone').value.trim();
+
+      // 檢查姓名必填
+      if (!nameVal) {
+        alert('請輸入姓名！');
+        document.getElementById('name').focus();
+        return;
+      }
+
+      // 檢查 10 位數手機格式 (09 開頭 + 8 位數字)
+      const phoneRegex = /^09\d{8}$/;
+      if (!phoneRegex.test(phoneVal)) {
+        alert('請輸入正確的 10 位數手機號碼（格式：09XXXXXXXX）');
+        document.getElementById('phone').focus();
+        return;
+      }
+
       const selectedCheckboxes = Array.from(document.querySelectorAll('#timeGrid input[type="checkbox"]:checked'));
       if (selectedCheckboxes.length === 0) {
         alert('請先選擇至少一個預約時段！');
@@ -447,20 +496,16 @@
       const submitBtn = document.getElementById('addSubmitBtn');
       const allCheckboxes = document.querySelectorAll('#timeGrid input[type="checkbox"]');
       
-      // 按鈕與選項防連點鎖定
       submitBtn.disabled = true;
       allCheckboxes.forEach(cb => cb.disabled = true);
 
       const dateVal = document.getElementById('date').value;
-      const nameVal = document.getElementById('name').value;
-      const phoneVal = document.getElementById('phone').value;
       const serviceVal = document.getElementById('service').value;
 
       let successCount = 0;
       let failCount = 0;
       const total = selectedCheckboxes.length;
 
-      // 順序發送 API，搭配 Google Apps Script 的 LockService 機制
       for (let i = 0; i < total; i++) {
         const timeVal = selectedCheckboxes[i].value;
         submitBtn.textContent = `正在預約 (${i + 1}/${total})...`;
@@ -504,6 +549,7 @@
       const searchName = document.getElementById('searchName').value.trim();
       if (!searchName) {
         alert('請輸入姓名進行查詢');
+        document.getElementById('searchName').focus();
         return;
       }
 
@@ -586,8 +632,10 @@
       }
 
       const phone = document.getElementById('deletePhone').value.trim();
-      if (!phone) {
-        alert('請輸入電話號碼以進行驗證');
+      const phoneRegex = /^09\d{8}$/;
+      if (!phoneRegex.test(phone)) {
+        alert('請輸入正確的 10 位數驗證電話號碼（格式：09XXXXXXXX）');
+        document.getElementById('deletePhone').focus();
         return;
       }
 
@@ -595,7 +643,7 @@
       const checkboxes = document.querySelectorAll('#bookingList input[type="checkbox"]');
 
       submitBtn.disabled = true;
-      checkboxes.forEach(cb => cb.disabled = false);
+      checkboxes.forEach(cb => cb.disabled = true);
 
       let successCount = 0;
       let failCount = 0;
@@ -638,6 +686,8 @@
     }
 
     setupDateLimits();
+    bindPhoneInput('phone');
+    bindPhoneInput('deletePhone');
     fetchBookedSlots();
   </script>
 </body>
