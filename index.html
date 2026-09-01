@@ -92,7 +92,6 @@
       text-align: center;
     }
     
-    /* 修正手機版日期對比與置中 */
     input[type="date"] {
       display: flex;
       justify-content: center;
@@ -161,7 +160,7 @@
       color: var(--alert-color);
     }
 
-    .time-grid input[type="radio"] {
+    .time-grid input[type="checkbox"] {
       display: none;
     }
     
@@ -173,7 +172,6 @@
       text-align: center;
     }
 
-    /* 複選式預約清單樣式 */
     .booking-list {
       display: flex;
       flex-direction: column;
@@ -266,9 +264,9 @@
       </div>
     </div>
 
-    <div class="section-title">預約時段</div>
+    <!-- 預約時段改為可複選 -->
+    <div class="section-title">預約時段 (可複選)</div>
     <div class="time-grid" id="timeGrid"></div>
-    <input type="hidden" id="selectedTime" required>
 
     <div class="section-title">聯絡資訊</div>
     <div class="form-row">
@@ -359,8 +357,6 @@
       timeGrid.innerHTML = ''; 
       
       const selectedDate = document.getElementById('date').value;
-      const selectedTimeInput = document.getElementById('selectedTime');
-      selectedTimeInput.value = '';
 
       if (!selectedDate) {
         timeGrid.innerHTML = '<div style="color:#555; padding: 20px 0; font-size:18px; font-weight:bold; text-align:center;">請先選擇上方「預約日期」</div>';
@@ -395,10 +391,11 @@
         const label = document.createElement('label');
         label.className = 'time-btn';
         
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = 'timeSelection';
-        radio.value = time;
+        // 使用 Checkbox 實現預約時段複選
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.name = 'timeSelection';
+        checkbox.value = time;
         
         const mainText = document.createElement('span');
         mainText.textContent = time;
@@ -408,19 +405,19 @@
 
         if (isBooked) {
           label.classList.add('disabled');
-          radio.disabled = true;
+          checkbox.disabled = true;
           subText.textContent = '已被預約';
         }
 
-        radio.addEventListener('change', (e) => {
-          document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('selected'));
-          if(e.target.checked) {
+        checkbox.addEventListener('change', (e) => {
+          if (e.target.checked) {
             label.classList.add('selected');
-            selectedTimeInput.value = e.target.value;
+          } else {
+            label.classList.remove('selected');
           }
         });
 
-        label.appendChild(radio);
+        label.appendChild(checkbox);
         label.appendChild(mainText);
         label.appendChild(subText);
         timeGrid.appendChild(label);
@@ -437,42 +434,70 @@
       document.getElementById('deleteSection').style.display = mode === 'delete' ? 'block' : 'none';
     }
 
-    document.getElementById('addForm').addEventListener('submit', function(e) {
+    // 預約送出：採用 Async/Await 序列化寫入，防止併發衝突
+    document.getElementById('addForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      const selectedTime = document.getElementById('selectedTime').value;
-      if (!selectedTime) {
-        alert('請選擇預約時段！');
+      const selectedCheckboxes = Array.from(document.querySelectorAll('#timeGrid input[type="checkbox"]:checked'));
+      if (selectedCheckboxes.length === 0) {
+        alert('請先選擇至少一個預約時段！');
         return;
       }
 
       const submitBtn = document.getElementById('addSubmitBtn');
+      const allCheckboxes = document.querySelectorAll('#timeGrid input[type="checkbox"]');
+      
+      // 按鈕與選項防連點鎖定
       submitBtn.disabled = true;
-      submitBtn.textContent = '處理中...';
+      allCheckboxes.forEach(cb => cb.disabled = true);
 
-      const payload = {
-        action: 'add',
-        date: document.getElementById('date').value,
-        time: selectedTime,
-        name: document.getElementById('name').value,
-        phone: document.getElementById('phone').value,
-        service: document.getElementById('service').value
-      };
+      const dateVal = document.getElementById('date').value;
+      const nameVal = document.getElementById('name').value;
+      const phoneVal = document.getElementById('phone').value;
+      const serviceVal = document.getElementById('service').value;
 
-      fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-        if (data.result === 'success') {
-          location.reload();
-        } else {
-          submitBtn.disabled = false;
-          submitBtn.textContent = '確認預約';
+      let successCount = 0;
+      let failCount = 0;
+      const total = selectedCheckboxes.length;
+
+      // 順序發送 API，搭配 Google Apps Script 的 LockService 機制
+      for (let i = 0; i < total; i++) {
+        const timeVal = selectedCheckboxes[i].value;
+        submitBtn.textContent = `正在預約 (${i + 1}/${total})...`;
+
+        const payload = {
+          action: 'add',
+          date: dateVal,
+          time: timeVal,
+          name: nameVal,
+          phone: phoneVal,
+          service: serviceVal
+        };
+
+        try {
+          const res = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+
+          if (data.result === 'success') {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          failCount++;
         }
-      });
+      }
+
+      if (failCount === 0) {
+        alert(`已成功預約 ${successCount} 個時段！`);
+        location.reload();
+      } else {
+        alert(`預約完成：成功 ${successCount} 個時段，失敗 ${failCount} 個時段。\n（部分時段失敗可能因該時段剛好被其他人搶先預約）`);
+        location.reload();
+      }
     });
 
     function searchUserBookings() {
@@ -501,7 +526,6 @@
             day: '2-digit'
           }).format(now);
 
-          // 保留今日(含)以後的預約，並依時間由舊到新排序
           const validBookings = data.bookings
             .filter(item => {
               const bookingDate = item.bookingTime.split(' ')[0];
@@ -515,7 +539,6 @@
             return;
           }
 
-          // 渲染複選框 Checkbox
           validBookings.forEach(item => {
             const div = document.createElement('div');
             div.className = 'booking-item';
@@ -556,7 +579,6 @@
       .catch(err => alert('查詢失敗：' + err));
     }
 
-    // 安全取消函式：使用 async/await 進行嚴格序列化刪除
     async function confirmDelete() {
       if (selectedBookingTimesForDelete.length === 0) {
         alert('請先勾選至少一筆欲取消的預約紀錄！');
@@ -572,15 +594,13 @@
       const submitBtn = document.getElementById('deleteSubmitBtn');
       const checkboxes = document.querySelectorAll('#bookingList input[type="checkbox"]');
 
-      // 安全鎖 1：UI 全域凍結，避免連點與狀態變更
       submitBtn.disabled = true;
-      checkboxes.forEach(cb => cb.disabled = true);
+      checkboxes.forEach(cb => cb.disabled = false);
 
       let successCount = 0;
       let failCount = 0;
       const total = selectedBookingTimesForDelete.length;
 
-      // 安全鎖 2：使用 for 迴圈 + await，強制單線程等候前一筆請求回應才執行下一筆
       for (let i = 0; i < total; i++) {
         const bookingTime = selectedBookingTimesForDelete[i];
         submitBtn.textContent = `正在取消 (${i + 1}/${total})...`;
@@ -606,7 +626,6 @@
         }
       }
 
-      // 安全鎖 3：結果提示與狀態重置
       if (failCount === 0) {
         alert(`已成功取消 ${successCount} 筆預約！`);
         location.reload();
