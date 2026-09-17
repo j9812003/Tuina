@@ -344,12 +344,11 @@
       dateInput.max = maxStr;
     }
 
-    // 簡化且穩定：純粹清理非數字與截斷字長，不強行改寫內容
     function bindPhoneInput(inputId) {
       const input = document.getElementById(inputId);
       
       input.addEventListener('input', (e) => {
-        let val = e.target.value.replace(/\D/g, ''); // 只保留數字
+        let val = e.target.value.replace(/\D/g, '');
         if (val.length > 10) {
           val = val.slice(0, 10);
         }
@@ -510,6 +509,9 @@
         try {
           const res = await fetch(GAS_URL, {
             method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
             body: JSON.stringify(payload)
           });
           const data = await res.json();
@@ -543,6 +545,9 @@
 
       fetch(GAS_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
         body: JSON.stringify({ action: 'search', name: searchName })
       })
       .then(res => res.json())
@@ -644,6 +649,9 @@
         try {
           const res = await fetch(GAS_URL, {
             method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8'
+            },
             body: JSON.stringify({
               action: 'delete',
               bookingTime: bookingTime,
