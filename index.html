@@ -509,9 +509,6 @@
         try {
           const res = await fetch(GAS_URL, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8'
-            },
             body: JSON.stringify(payload)
           });
           const data = await res.json();
@@ -545,9 +542,6 @@
 
       fetch(GAS_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8'
-        },
         body: JSON.stringify({ action: 'search', name: searchName })
       })
       .then(res => res.json())
@@ -649,9 +643,6 @@
         try {
           const res = await fetch(GAS_URL, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8'
-            },
             body: JSON.stringify({
               action: 'delete',
               bookingTime: bookingTime,
